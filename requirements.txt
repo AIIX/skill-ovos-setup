@@ -1,5 +1,4 @@
 ovos_workshop>=0.0.7a8
-ovos-stt-plugin-vosk
 neon-tts-plugin-larynx-server
 ovos-tts-plugin-mimic
 ovos-tts-plugin-mimic2
