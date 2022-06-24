@@ -621,11 +621,12 @@ class PairingSkill(OVOSSkill):
 
     # GUI
     def handle_display_manager(self, state):
-        self.gui["state"] = state
-        self.gui.show_page(
-            "ProcessLoader.qml",
-            override_idle=True,
-            override_animations=True)
+        if not state=="LoadingSkills":
+            self.gui["state"] = state
+            self.gui.show_page(
+                "ProcessLoader.qml",
+                override_idle=True,
+                override_animations=True)
 
     def show_pairing_start(self):
         # Make sure code stays on display
@@ -655,6 +656,8 @@ class PairingSkill(OVOSSkill):
         # self.gui.show_page("status.qml", override_idle=True,
         # override_animations=True)
         self.handle_display_manager("Status")
+        sleep(5)
+        self.gui.release()
 
     def show_pairing_fail(self):
         self.gui.release()
