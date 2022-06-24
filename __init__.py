@@ -16,6 +16,7 @@ from time import sleep
 from uuid import uuid4
 
 import mycroft.audio
+from os.path import exists, join
 from adapt.intent import IntentBuilder
 from mycroft.api import DeviceApi, is_paired, check_remote_pairing
 from mycroft.configuration import LocalConf, USER_CONFIG
@@ -27,6 +28,8 @@ from ovos_workshop.decorators import killable_event
 from requests import HTTPError
 from ovos_utils.network_utils import is_connected
 from ovos_utils.gui import can_use_gui
+from ovos_utils.xdg_utils import xdg_config_home
+from json_database import JsonStorage
 
 from enum import Enum
 
@@ -64,14 +67,23 @@ class PairingSkill(OVOSSkill):
         self.num_failed_codes = 0
 
         self.state = SetupState.LOADING
+        self.pairing_url = None
+        self.pairing_color = None
+        self.settings_json = None
+        self.settings_json_path = None
 
     # startup
     def initialize(self):
         # specific distros/vendors can override this
+        self.settings_json_path = join(xdg_config_home(), "OvosPairing.conf")
+        self.settings_json = JsonStorage(self.settings_json_path)
+        self.pairing_url = "home.mycroft.ai"
+        self.pairing_color = "#FF0000"
         if "pairing_url" not in self.settings:
-            self.settings["pairing_url"] = "home.mycroft.ai"
+            self.settings_json["pairing_url"] = "home.mycroft.ai"
         if "color" not in self.settings:
-            self.settings["color"] = "#FF0000"
+            self.settings_json["color"] = "#FF0000"
+        self.settings_json.store()
 
         self.add_event("mycroft.not.paired", self.not_paired)
         self.add_event("ovos.setup.state", self.handle_get_setup_state)
@@ -110,30 +122,30 @@ class PairingSkill(OVOSSkill):
 
     @property
     def selected_backend(self):
-        return self.settings.get("selected_backend")
+        return self.settings_json.get("selected_backend")
 
     @selected_backend.setter
     def selected_backend(self, value):
-        self.settings["selected_backend"] = value
-        self.settings.store()
+        self.settings_json["selected_backend"] = value
+        self.settings_json.store()
 
     @property
     def selected_stt(self):
-        return self.settings.get("selected_stt")
+        return self.settings_json.get("selected_stt")
 
     @selected_stt.setter
     def selected_stt(self, value):
-        self.settings["selected_stt"] = value
-        self.settings.store()
+        self.settings_json["selected_stt"] = value
+        self.settings_json.store()
 
     @property
     def selected_tts(self):
-        return self.settings.get("selected_tts")
+        return self.settings_json.get("selected_tts")
 
     @selected_tts.setter
     def selected_tts(self, value):
-        self.settings["selected_tts"] = value
-        self.settings.store()
+        self.settings_json["selected_tts"] = value
+        self.settings_json.store()
 
     def handle_get_setup_state(self, message):
         self.bus.emit(message.response({"state": self.state}))
@@ -618,7 +630,7 @@ class PairingSkill(OVOSSkill):
     def show_pairing_start(self):
         # Make sure code stays on display
         self.enclosure.deactivate_mouth_events()
-        self.enclosure.mouth_text(self.settings["pairing_url"] + "      ")
+        self.enclosure.mouth_text(self.pairing_url + "      ")
         self.handle_display_manager("PairingStart")
         # self.gui.show_page("pairing_start.qml", override_idle=True,
         # override_animations=True)
@@ -627,8 +639,8 @@ class PairingSkill(OVOSSkill):
         # self.gui.remove_page("pairing_start.qml")
         self.enclosure.deactivate_mouth_events()
         self.enclosure.mouth_text(code)
-        self.gui["txtcolor"] = self.settings["color"]
-        self.gui["backendurl"] = self.settings["pairing_url"]
+        self.gui["txtcolor"] = self.pairing_color
+        self.gui["backendurl"] = self.pairing_url
         self.gui["code"] = code
         self.handle_display_manager("Pairing")
         # self.gui.show_page("pairing.qml", override_idle=True,
